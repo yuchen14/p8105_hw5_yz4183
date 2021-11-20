@@ -113,3 +113,73 @@ results_df %>%
 
 
 ## Problem 2
+  
+```{r}
+file = 
+  tibble(file_names = "con_01.csv")
+
+con_01_data = 
+  file %>%
+  select(file_names) %>% 
+  mutate(file_path = str_c("./data/zip_data/",file_names)) %>% 
+  select(file_path) %>% 
+  read_csv()
+
+df = 
+  
+```
+
+
+```{r}
+files = tibble(
+  file_names = list.files("./data/zip_data/")
+)
+
+```
+
+
+```{r}
+read_csv_function = function(file_names){
+  
+  data = read_csv(str_c("./data/zip_data/",file_names))  
+  
+  return(data)
+}
+```
+
+```{r}
+files_df =
+  files %>% 
+  mutate(
+    data = map(file_names, read_csv_function)
+  ) %>% 
+  unnest(data) %>% 
+  #mutate(file_names = substr(file_names, 1, 6)) %>% 
+  separate(file_names, c("arm_type", "subject_id"), "_") %>% 
+  mutate(arm_type = case_when(
+           arm_type == "con" ~ "control",
+           arm_type == "exp" ~ "experimental"),
+         subject_id = substr(subject_id, 1, 2)) %>% 
+  pivot_longer(week_1:week_8, 
+               names_to = "week", 
+               values_to = "values")
+  
+
+files_df %>% 
+  ggplot(aes(x = week, y = values, group = subject_id, color = subject_id)) + 
+  geom_line() + 
+  labs(x = "Week", y = "Values", title = "Values Over the Weeks By Arm Type") + 
+  facet_grid(. ~ arm_type)
+```
+
+```{r}
+separate(file_names, c("arm_type", "subject_id"), "_") %>% 
+  mutate(arm_type = case_when(
+           arm_type == "con" ~ "control",
+           arm_type == "exp" ~ "experimental"),
+         subject_id = substr(subject_id, 1, 2)) %>% 
+  pivot_longer(week_1:week_8, 
+               names_to = "week", 
+               values_to = "values")
+```
+
