@@ -1,0 +1,115 @@
+---
+title: "p8105_HW5"
+author: "Yuchen Zheng"
+date: "11/16/2021"
+output: github_document
+---
+
+```{r}
+library(tidyverse)
+library(readr)
+```
+
+## Problem 1
+
+Describe the raw data. 
+
+```{r}
+raw_df = read_csv("./data/homicide-data.csv", na = c("", "Unknown")) 
+```
+
+
+
+Create a city_state variable and summarize within cities to obtain the total number of homicides and the number of unsolved homicides. 
+```{r}
+homicide_df = 
+  read_csv("./data/homicide-data.csv", na = c("", "Unknown")) %>% 
+  mutate(city_state = str_c(city, state),
+         resolution = case_when(
+           disposition == "Closed without arrest" ~ "unsolved",
+           disposition == "Open/No arrest"        ~ "unsolved",
+           disposition == "Closed by arrest"     ~ "solved"
+          )) %>% 
+  relocate(city_state) %>% 
+  filter(city_state != "TulsaAL")
+```
+
+```{r}
+baltimore_df = 
+  homicide_df %>% 
+  filter(city_state == "BaltimoreMD")
+
+baltimore_summary = 
+baltimore_df %>% 
+  summarize(
+    unsolved = sum(resolution == "unsolved"),
+    n = n()
+  )
+
+baltimore_test = 
+  prop.test(
+  x = baltimore_summary %>% pull(unsolved),
+  n = baltimore_summary %>% pull(n)
+)
+
+baltimore_test %>% 
+  broom::tidy()
+```
+
+```{r}
+prop_test_function = function(city_df){
+  
+  city_summary = 
+    city_df %>% 
+    summarize(
+      unsolved = sum(resolution == "unsolved"),
+      n = n()
+  )
+
+  city_test = 
+    prop.test(
+      x = city_summary %>% pull(unsolved),
+      n = city_summary %>% pull(n)) 
+      
+  return(city_test)
+  
+}
+```
+
+```{r}
+results_df = 
+  homicide_df %>% 
+  nest(data = uid:resolution) %>% 
+  mutate(
+    test_results = map(data, prop_test_function),
+    tidy_results = map(test_results, broom::tidy)
+  ) %>% 
+  select(city_state, tidy_results) %>% 
+  unnest(tidy_results) %>% 
+  select(city_state, estimate, starts_with("conf"))
+
+nested_df %>% 
+  filter(city_state == "BaltimoreMD") %>% 
+  pull(data)
+
+nested_df %>% 
+  filter(city_state == "BaltimoreMD") %>% 
+  pull(test_results)
+
+nested_df %>% 
+  filter(city_state == "BaltimoreMD") %>% 
+  pull(tidy_results)
+```
+
+
+```{r}
+results_df %>% 
+  mutate(city_state = fct_reorder(city_state, estimate)) %>% 
+  ggplot(aes(x = city_state, y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+
+## Problem 2
